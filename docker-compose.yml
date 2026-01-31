@@ -1,0 +1,77 @@
+services:
+  db:
+    image: postgres:15
+    container_name: algosphere_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: postgres  # default DB for init script to connect
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: algosphere_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  profile-service:
+    build: ./profile-service
+    container_name: profile-service
+    env_file:
+      - ./profile-service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://admin:password123@db:5432/authdb
+      - JWT_SECRET=supersecretkey
+      - REDIS_URL=redis://redis:6379/0
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - REFRESH_TOKEN_EXPIRE_DAYS=30
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  gateway:
+    build: ./gateway
+    container_name: gateway
+    depends_on:
+      - profile-service
+      - auth-service
+    ports:
+      - "8000:8000"
+    # Add env vars if gateway needs them
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PROFILE_SERVICE_URL=http://profile-service:8000
+
+volumes:
+  pg_data:
