@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from src.models.profile import UserProfile
+from src.dependencies import get_db
 
 def get_or_create_profile(db: Session, user_id: str):
     profile = db.get(UserProfile, user_id)

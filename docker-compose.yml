@@ -1,11 +1,11 @@
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: algosphere_db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: postgres  # default DB for init script to connect
+      POSTGRES_DB: postgres          # default DB for init script to connect
     ports:
       - "5432:5432"
     volumes:
@@ -18,7 +18,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: algosphere_redis
     ports:
       - "6379:6379"
@@ -27,19 +27,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
-  profile-service:
-    build: ./profile-service
-    container_name: profile-service
-    env_file:
-      - ./profile-service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "8001:8000"
 
   auth-service:
     build: ./auth-service
@@ -60,6 +47,19 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
 
+  profile-service:
+    build: ./profile-service
+    container_name: profile-service
+    env_file:
+      - ./profile-service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+
   gateway:
     build: ./gateway
     container_name: gateway
@@ -68,10 +68,11 @@ services:
       - auth-service
     ports:
       - "8000:8000"
-    # Add env vars if gateway needs them
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8000
       - PROFILE_SERVICE_URL=http://profile-service:8000
+      - JWT_SECRET=supersecretkey   # add if needed
+      - REDIS_URL=redis://redis:6379/0
 
 volumes:
   pg_data:
