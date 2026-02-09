@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 import os
+import uuid
 from src.config import JWT_SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 
 # Password hashing
@@ -26,7 +27,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = 
     """Create a short-lived JWT access token."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire, "type": "access", "jti": uuid.uuid4().hex})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 
@@ -34,7 +35,7 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create a long-lived JWT refresh token."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire, "type": "refresh", "jti": uuid.uuid4().hex})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 

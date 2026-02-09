@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import random
 from redis.asyncio import Redis
 from ..database import get_db
 from ..models.user import User
+from ..models.email_otp import EmailOTP
 from src.schemas.user import UserCreate, UserOut
 from ..utils.security import verify_password, create_access_token, create_refresh_token, decode_token, get_password_hash
 from ..dependencies import oauth2_scheme, get_current_user, limiter
